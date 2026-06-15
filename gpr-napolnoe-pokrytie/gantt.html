@@ -58,7 +58,7 @@
   .track{position:relative;flex:1}
   .bar{position:absolute;top:6px;height:22px;border-radius:5px;display:flex;align-items:center;
     padding:0 7px;color:#fff;font-size:11px;font-family:var(--mono);cursor:grab;white-space:nowrap;
-    overflow:hidden;user-select:none;box-shadow:0 1px 2px rgba(0,0,0,.18)}
+    overflow:hidden;user-select:none;box-shadow:0 1px 2px rgba(0,0,0,.18);touch-action:none}
   .bar:active{cursor:grabbing}
   .bar.Поставка{background:var(--postavka)}
   .bar.Укладка{background:var(--ukladka)}
@@ -130,6 +130,7 @@ const STATUSES = ["План","В работе","Готово","Критично"
 let DATA = null;
 let zoom = "week";
 let pxDay = { day: 26, week: 7 };
+let ppdNow = 7; // current pixels-per-day, kept in sync by renderGantt (used by touch/mouse drag)
 
 /* ---------- date helpers ---------- */
 const DAY = 86400000;
@@ -183,7 +184,7 @@ function renderAll(){ renderGantt(); renderTable(); }
 function renderGantt(){
   const g=document.getElementById("gantt");
   const {min,total}=bounds();
-  const ppd=pxDay[zoom];
+  const ppd=pxDay[zoom]; ppdNow=ppd;
   const W=total*ppd, LABELW=zoom==="week"?230:230;
   g.style.setProperty("--labelw",LABELW+"px");
   const x = d => diffDays(min,d)*ppd;
@@ -255,29 +256,33 @@ function renderGantt(){
   attachDrag(min,ppd,LABELW);
 }
 
-/* ---------- drag bars ---------- */
+/* ---------- drag bars (mouse + touch via Pointer Events) ---------- */
 function attachDrag(min,ppd,LABELW){
-  let drag=null;
   document.querySelectorAll(".bar").forEach(bar=>{
-    bar.addEventListener("mousedown",e=>{
+    bar.addEventListener("pointerdown",e=>{
       const id=bar.dataset.id, t=DATA.tasks.find(x=>x.id===id);
       const mode = e.target.classList.contains("l")?"l":e.target.classList.contains("r")?"r":"move";
       drag={id,t,mode,startX:e.clientX,s0:t.start,e0:t.end};
+      try{ bar.setPointerCapture(e.pointerId); }catch(_){}
       e.preventDefault();
     });
   });
-  window.addEventListener("mousemove",e=>{
-    if(!drag) return;
-    const dd=Math.round((e.clientX-drag.startX)/ppd);
-    if(dd===0) return;
-    const t=drag.t;
-    if(drag.mode==="move"){ t.start=addDays(drag.s0,dd); t.end=addDays(drag.e0,dd); }
-    else if(drag.mode==="l"){ const ns=addDays(drag.s0,dd); if(ns<=t.end) t.start=ns; }
-    else { const ne=addDays(drag.e0,dd); if(ne>=t.start) t.end=ne; }
-    renderGantt(); // live
-  });
-  window.addEventListener("mouseup",()=>{ if(drag){ save(); renderTable(); drag=null; } });
 }
+let drag=null;
+function onMove(e){
+  if(!drag) return;
+  const dd=Math.round((e.clientX-drag.startX)/ppdNow);
+  if(dd===0) return;
+  const t=drag.t;
+  if(drag.mode==="move"){ t.start=addDays(drag.s0,dd); t.end=addDays(drag.e0,dd); }
+  else if(drag.mode==="l"){ const ns=addDays(drag.s0,dd); if(ns<=t.end) t.start=ns; }
+  else { const ne=addDays(drag.e0,dd); if(ne>=t.start) t.end=ne; }
+  renderGantt(); // live
+}
+function onUp(){ if(drag){ save(); renderTable(); drag=null; } }
+window.addEventListener("pointermove",onMove,{passive:false});
+window.addEventListener("pointerup",onUp);
+window.addEventListener("pointercancel",onUp);
 
 /* ---------- table ---------- */
 function renderTable(){
