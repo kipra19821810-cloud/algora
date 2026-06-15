@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ГПР · Напольное покрытие — ARDHANA</title>
+<style>
+  :root{
+    --paper:#f4f6f9; --panel:#ffffff; --ink:#1b2733; --muted:#6b7a8d;
+    --grid:#e3e9f1; --grid-strong:#cdd6e2; --slate:#2c3a4b;
+    --postavka:#e0922f; --ukladka:#2f6df0; --podgot:#7a8aa0;
+    --gotovo:#2f9e6f; --kritich:#d4493f; --today:#d4493f;
+    --weekend:#eef2f7;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:ui-sans-serif,-apple-system,"Segoe UI",Roboto,Inter,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px}
+  header{position:sticky;top:0;z-index:30;background:var(--slate);color:#fff;
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 16px;
+    box-shadow:0 1px 0 rgba(0,0,0,.15)}
+  header h1{font-size:15px;margin:0;font-weight:650;letter-spacing:.2px}
+  header .sub{font-family:var(--mono);font-size:11px;color:#aeb9c7}
+  header .spacer{flex:1}
+  .btn{appearance:none;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.06);
+    color:#fff;border-radius:7px;padding:6px 11px;font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap}
+  .btn:hover{background:rgba(255,255,255,.16)}
+  .btn.acc{background:var(--ukladka);border-color:transparent}
+  .btn.acc:hover{filter:brightness(1.08)}
+  .zoom{display:inline-flex;border:1px solid rgba(255,255,255,.22);border-radius:7px;overflow:hidden}
+  .zoom button{border:0;background:transparent;color:#fff;padding:6px 10px;font:inherit;font-size:12.5px;cursor:pointer}
+  .zoom button.on{background:var(--ukladka)}
+
+  main{padding:14px 16px 80px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin:2px 0 12px;color:var(--muted);font-size:12px}
+  .swatch{display:inline-flex;align-items:center;gap:6px}
+  .swatch i{width:14px;height:10px;border-radius:2px;display:inline-block}
+
+  /* GANTT */
+  .gwrap{background:var(--panel);border:1px solid var(--grid-strong);border-radius:10px;overflow:auto;margin-bottom:18px}
+  .gantt{position:relative;min-width:max-content}
+  .axis{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--grid-strong)}
+  .axis .months,.axis .days{display:flex}
+  .axis .lbl-pad{flex:0 0 var(--labelw);position:sticky;left:0;background:var(--panel);z-index:21;border-right:1px solid var(--grid-strong)}
+  .month{font-family:var(--mono);font-size:11px;color:var(--muted);padding:6px 8px;border-right:1px solid var(--grid);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+  .wk{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;border-right:1px solid var(--grid);padding:3px 0;white-space:nowrap}
+  .rows{position:relative}
+  .grp-h{display:flex;align-items:center;position:sticky;left:0;z-index:10;
+    background:#eef2f7;color:var(--slate);font-weight:650;font-size:12px;letter-spacing:.4px;
+    padding:5px 10px;border-top:1px solid var(--grid-strong);border-bottom:1px solid var(--grid)}
+  .row{display:flex;position:relative;height:34px;border-bottom:1px solid var(--grid)}
+  .row:hover{background:#fafbfd}
+  .rlabel{flex:0 0 var(--labelw);position:sticky;left:0;z-index:9;background:inherit;
+    display:flex;align-items:center;gap:8px;padding:0 10px;border-right:1px solid var(--grid-strong);
+    font-size:12.5px;white-space:nowrap;overflow:hidden}
+  .row:hover .rlabel{background:#fafbfd}
+  .rlabel .fl{color:var(--muted);font-family:var(--mono);font-size:11px}
+  .track{position:relative;flex:1}
+  .bar{position:absolute;top:6px;height:22px;border-radius:5px;display:flex;align-items:center;
+    padding:0 7px;color:#fff;font-size:11px;font-family:var(--mono);cursor:grab;white-space:nowrap;
+    overflow:hidden;user-select:none;box-shadow:0 1px 2px rgba(0,0,0,.18)}
+  .bar:active{cursor:grabbing}
+  .bar.Поставка{background:var(--postavka)}
+  .bar.Укладка{background:var(--ukladka)}
+  .bar.Подготовка{background:var(--podgot)}
+  .bar.st-Готово{outline:2px solid var(--gotovo);outline-offset:-2px}
+  .bar.st-Критично{outline:2px solid #7a1f18;outline-offset:-2px;box-shadow:0 0 0 2px rgba(212,73,63,.35)}
+  .bar .handle{position:absolute;top:0;width:8px;height:100%;cursor:ew-resize}
+  .bar .handle.l{left:0} .bar .handle.r{right:0}
+  .today{position:absolute;top:0;bottom:0;width:2px;background:var(--today);z-index:8}
+  .today b{position:absolute;top:-1px;left:3px;font-family:var(--mono);font-size:9px;color:var(--today);background:var(--panel);padding:0 3px}
+  .mstone{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed #8a5cf0;z-index:7}
+  .mstone b{position:absolute;top:14px;left:4px;font-family:var(--mono);font-size:9px;color:#6b3fd6;background:var(--panel);padding:0 3px;white-space:nowrap}
+  .weekend-col{position:absolute;top:0;bottom:0;background:var(--weekend);z-index:1}
+  .dep{position:absolute;height:0;border-top:1.5px dotted #97a6b8;z-index:6}
+
+  /* TABLE */
+  .tablecard{background:var(--panel);border:1px solid var(--grid-strong);border-radius:10px;overflow:auto}
+  table{border-collapse:collapse;width:100%;min-width:880px;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--grid);padding:5px 8px;text-align:left;vertical-align:middle}
+  th{position:sticky;top:0;background:#eef2f7;color:var(--slate);font-weight:650;z-index:2;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px}
+  td input,td select{width:100%;border:1px solid transparent;background:transparent;font:inherit;
+    color:var(--ink);border-radius:5px;padding:3px 5px}
+  td input:focus,td select:focus{outline:none;border-color:var(--ukladka);background:#fff}
+  td input[type=date]{font-family:var(--mono);font-size:11.5px}
+  .days-cell{font-family:var(--mono);color:var(--muted);text-align:center}
+  .del{border:0;background:transparent;color:var(--kritich);cursor:pointer;font-size:15px;line-height:1}
+  .sect{padding:8px 10px;font-weight:650;color:var(--slate);background:#f7f9fc;border-bottom:1px solid var(--grid)}
+  .hint{color:var(--muted);font-size:12px;margin:14px 2px 6px}
+  .pill{font-family:var(--mono);font-size:11px;padding:1px 6px;border-radius:20px;border:1px solid var(--grid-strong);color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <h1>ГПР · Напольное покрытие</h1>
+  <span class="sub" id="meta">ARDHANA</span>
+  <div class="spacer"></div>
+  <div class="zoom" id="zoom">
+    <button data-z="day">День</button>
+    <button data-z="week" class="on">Неделя</button>
+  </div>
+  <button class="btn" id="addBtn">+ Задача</button>
+  <button class="btn" id="importBtn">Импорт JSON</button>
+  <button class="btn" id="jsonBtn">Экспорт JSON</button>
+  <button class="btn acc" id="csvBtn">Экспорт в ГПР (CSV)</button>
+  <input type="file" id="fileIn" accept=".json,application/json" hidden>
+</header>
+
+<main>
+  <div class="legend">
+    <span class="swatch"><i style="background:var(--postavka)"></i>Поставка</span>
+    <span class="swatch"><i style="background:var(--ukladka)"></i>Укладка</span>
+    <span class="swatch"><i style="background:var(--podgot)"></i>Подготовка</span>
+    <span class="swatch"><i style="outline:2px solid var(--gotovo);outline-offset:-2px;background:#fff"></i>Готово</span>
+    <span class="swatch"><i style="outline:2px solid var(--kritich);outline-offset:-2px;background:#fff"></i>Критично</span>
+    <span class="pill" id="src">источник: seed</span>
+  </div>
+
+  <div class="gwrap"><div class="gantt" id="gantt"></div></div>
+
+  <div class="hint">Таблица — правь даты вручную, перетаскивай полосы на диаграмме (тяни за центр — сдвиг, за края — растягивание).</div>
+  <div class="tablecard"><div id="table"></div></div>
+</main>
+
+<script>
+const LS_KEY = "ardhana_gpr_plitka_v1";
+const STAGES = ["Поставка","Укладка","Подготовка"];
+const STATUSES = ["План","В работе","Готово","Критично"];
+
+let DATA = null;
+let zoom = "week";
+let pxDay = { day: 26, week: 7 };
+
+/* ---------- date helpers ---------- */
+const DAY = 86400000;
+const iso = d => d.toISOString().slice(0,10);
+const parse = s => { const [y,m,d]=s.split("-").map(Number); return new Date(Date.UTC(y,m-1,d)); };
+const addDays = (s,n) => iso(new Date(parse(s).getTime()+n*DAY));
+const diffDays = (a,b) => Math.round((parse(b)-parse(a))/DAY);
+const fmt = s => { const d=parse(s); return String(d.getUTCDate()).padStart(2,"0")+"."+String(d.getUTCMonth()+1).padStart(2,"0"); };
+const MONTHS=["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
+const todayISO = () => iso(new Date());
+
+/* ---------- load / save ---------- */
+async function boot(){
+  // 1) try live file (works under a local server: python3 -m http.server)
+  try{
+    const r = await fetch("./schedule.json",{cache:"no-store"});
+    if(r.ok){ DATA = await r.json(); tagSrc("schedule.json (live)"); finishBoot(); return; }
+  }catch(e){/* file:// — fetch blocked, fall through */}
+  // 2) localStorage
+  const ls = localStorage.getItem(LS_KEY);
+  if(ls){ DATA = JSON.parse(ls); tagSrc("localStorage"); finishBoot(); return; }
+  // 3) embedded seed
+  DATA = SEED; tagSrc("seed"); finishBoot();
+}
+function tagSrc(s){ const el=document.getElementById("src"); if(el) el.textContent="источник: "+s; }
+function save(){ DATA.updated = todayISO(); localStorage.setItem(LS_KEY, JSON.stringify(DATA)); }
+function finishBoot(){
+  document.getElementById("meta").textContent =
+    DATA.project + " · " + (DATA.work_type||"") + " · обновлено " + (DATA.updated||"");
+  renderAll();
+}
+
+/* ---------- timeline bounds ---------- */
+function bounds(){
+  let min=null,max=null;
+  for(const t of DATA.tasks){
+    if(!min||t.start<min) min=t.start;
+    if(!max||t.end>max)   max=t.end;
+  }
+  (DATA.milestones||[]).forEach(m=>{ if(!min||m.date<min)min=m.date; if(!max||m.date>max)max=m.date; });
+  if(!min){ min=todayISO(); max=addDays(min,30); }
+  min = addDays(min,-4); max = addDays(max,4);
+  // snap min to Monday for clean week grid
+  const wd=(parse(min).getUTCDay()+6)%7; min=addDays(min,-wd);
+  return {min,max,total:diffDays(min,max)+1};
+}
+
+/* ---------- render gantt ---------- */
+function renderAll(){ renderGantt(); renderTable(); }
+
+function renderGantt(){
+  const g=document.getElementById("gantt");
+  const {min,total}=bounds();
+  const ppd=pxDay[zoom];
+  const W=total*ppd, LABELW=zoom==="week"?230:230;
+  g.style.setProperty("--labelw",LABELW+"px");
+  const x = d => diffDays(min,d)*ppd;
+
+  // axis
+  let months="",cur=null,run=0,monthsHTML="";
+  for(let i=0;i<total;i++){ const d=parse(addDays(min,i)); const key=d.getUTCFullYear()+"-"+d.getUTCMonth();
+    if(key!==cur){ if(cur!==null) monthsHTML+=`<div class="month" style="width:${run*ppd}px">${MONTHS[parse(addDays(min,i-1)).getUTCMonth()]} ${parse(addDays(min,i-1)).getUTCFullYear()}</div>`; cur=key; run=0; } run++; }
+  monthsHTML+=`<div class="month" style="width:${run*ppd}px">${MONTHS[parse(addDays(min,total-1)).getUTCMonth()]} ${parse(addDays(min,total-1)).getUTCFullYear()}</div>`;
+
+  // week ticks
+  let weeksHTML="";
+  for(let i=0;i<total;i+=7){ const d=addDays(min,i); weeksHTML+=`<div class="wk" style="width:${7*ppd}px">${fmt(d)}</div>`; }
+
+  // weekend shading
+  let weekendHTML="";
+  for(let i=0;i<total;i++){ const wd=parse(addDays(min,i)).getUTCDay(); if(wd===0||wd===6) weekendHTML+=`<div class="weekend-col" style="left:${i*ppd}px;width:${ppd}px"></div>`; }
+
+  // group by building -> floor, preserving order of appearance
+  const groups={};
+  DATA.tasks.forEach(t=>{ (groups[t.building]=groups[t.building]||[]).push(t); });
+
+  let rowsHTML="", rowIndex=0; const barPos={};
+  for(const b of Object.keys(groups)){
+    rowsHTML+=`<div class="grp-h" style="min-width:${LABELW+W}px">${b}</div>`;
+    // sub-group by floor
+    const byFloor={}; groups[b].forEach(t=>{ (byFloor[t.floor]=byFloor[t.floor]||[]).push(t); });
+    for(const fl of Object.keys(byFloor)){
+      for(const t of byFloor[fl]){
+        const left=x(t.start), w=Math.max((diffDays(t.start,t.end)+1)*ppd,12);
+        barPos[t.id]={top:rowIndex,left,w};
+        rowsHTML+=`<div class="row" data-id="${t.id}">
+          <div class="rlabel"><span class="fl">${fl}</span><span>${t.stage} · ${t.units||""}</span></div>
+          <div class="track">
+            <div class="bar ${t.stage} st-${t.status}" data-id="${t.id}"
+                 style="left:${left}px;width:${w}px" title="${t.stage} · ${t.units}\n${fmt(t.start)}–${fmt(t.end)} (${diffDays(t.start,t.end)+1} дн)\n${t.material}\n${t.note||""}">
+              <div class="handle l"></div>${fmt(t.start)}–${fmt(t.end)}<div class="handle r"></div>
+            </div>
+          </div></div>`;
+        rowIndex++;
+      }
+    }
+  }
+
+  const rowH=34, grpH=27, nGroups=Object.keys(groups).length;
+  const today=todayISO(); const todayX=(today>=min)?x(today):-9999;
+  const totalH=rowIndex*rowH+nGroups*grpH;
+
+  // dependency connectors
+  let depHTML="";
+  let ri=0; const rowTopOf={};
+  for(const b of Object.keys(groups)){ ri++; const byFloor={}; groups[b].forEach(t=>{(byFloor[t.floor]=byFloor[t.floor]||[]).push(t);});
+    for(const fl of Object.keys(byFloor)){ for(const t of byFloor[fl]){ rowTopOf[t.id]=(ri-1)*0; } } }
+
+  g.innerHTML=`
+    <div class="axis">
+      <div class="months"><div class="lbl-pad" style="width:${LABELW}px"></div>${monthsHTML}</div>
+      <div class="days"><div class="lbl-pad" style="width:${LABELW}px"></div>${weeksHTML}</div>
+    </div>
+    <div class="rows" style="min-height:${totalH}px">
+      <div style="position:absolute;left:${LABELW}px;top:0;right:0;bottom:0">
+        ${weekendHTML}
+        ${(DATA.milestones||[]).map(m=>`<div class="mstone" style="left:${x(m.date)}px"><b>${m.label} ${fmt(m.date)}</b></div>`).join("")}
+        ${todayX>-9000?`<div class="today" style="left:${todayX}px"><b>сегодня</b></div>`:""}
+      </div>
+      ${rowsHTML}
+    </div>`;
+
+  attachDrag(min,ppd,LABELW);
+}
+
+/* ---------- drag bars ---------- */
+function attachDrag(min,ppd,LABELW){
+  let drag=null;
+  document.querySelectorAll(".bar").forEach(bar=>{
+    bar.addEventListener("mousedown",e=>{
+      const id=bar.dataset.id, t=DATA.tasks.find(x=>x.id===id);
+      const mode = e.target.classList.contains("l")?"l":e.target.classList.contains("r")?"r":"move";
+      drag={id,t,mode,startX:e.clientX,s0:t.start,e0:t.end};
+      e.preventDefault();
+    });
+  });
+  window.addEventListener("mousemove",e=>{
+    if(!drag) return;
+    const dd=Math.round((e.clientX-drag.startX)/ppd);
+    if(dd===0) return;
+    const t=drag.t;
+    if(drag.mode==="move"){ t.start=addDays(drag.s0,dd); t.end=addDays(drag.e0,dd); }
+    else if(drag.mode==="l"){ const ns=addDays(drag.s0,dd); if(ns<=t.end) t.start=ns; }
+    else { const ne=addDays(drag.e0,dd); if(ne>=t.start) t.end=ne; }
+    renderGantt(); // live
+  });
+  window.addEventListener("mouseup",()=>{ if(drag){ save(); renderTable(); drag=null; } });
+}
+
+/* ---------- table ---------- */
+function renderTable(){
+  const groups={}; DATA.tasks.forEach(t=>{(groups[t.building]=groups[t.building]||[]).push(t);});
+  let html=`<table><thead><tr>
+    <th>Этаж</th><th>Юниты</th><th>Этап</th><th>Материал</th>
+    <th>Начало</th><th>Окончание</th><th>Дн.</th><th>Статус</th><th>Примечание</th><th></th>
+  </tr></thead><tbody>`;
+  for(const b of Object.keys(groups)){
+    html+=`<tr><td class="sect" colspan="10">${b}</td></tr>`;
+    for(const t of groups[b]){
+      html+=`<tr data-id="${t.id}">
+        <td><input data-f="floor" value="${esc(t.floor)}"></td>
+        <td><input data-f="units" value="${esc(t.units)}"></td>
+        <td><select data-f="stage">${STAGES.map(s=>`<option ${s===t.stage?"selected":""}>${s}</option>`).join("")}</select></td>
+        <td><input data-f="material" value="${esc(t.material)}"></td>
+        <td><input type="date" data-f="start" value="${t.start}"></td>
+        <td><input type="date" data-f="end" value="${t.end}"></td>
+        <td class="days-cell">${diffDays(t.start,t.end)+1}</td>
+        <td><select data-f="status">${STATUSES.map(s=>`<option ${s===t.status?"selected":""}>${s}</option>`).join("")}</select></td>
+        <td><input data-f="note" value="${esc(t.note)}"></td>
+        <td><button class="del" title="Удалить">✕</button></td>
+      </tr>`;
+    }
+  }
+  html+=`</tbody></table>`;
+  const wrap=document.getElementById("table"); wrap.innerHTML=html;
+
+  wrap.querySelectorAll("tr[data-id]").forEach(tr=>{
+    const id=tr.dataset.id, t=DATA.tasks.find(x=>x.id===id);
+    tr.querySelectorAll("[data-f]").forEach(inp=>{
+      inp.addEventListener("change",()=>{
+        let v=inp.value; const f=inp.dataset.f;
+        if(f==="start" && v>t.end) t.end=v;
+        if(f==="end" && v<t.start) v=t.start;
+        t[f]=v; save(); renderGantt();
+        if(f==="start"||f==="end") renderTable();
+      });
+    });
+    tr.querySelector(".del").addEventListener("click",()=>{
+      if(confirm("Удалить строку?")){ DATA.tasks=DATA.tasks.filter(x=>x.id!==id); save(); renderAll(); }
+    });
+  });
+}
+const esc = s => String(s??"").replace(/"/g,"&quot;");
+
+/* ---------- toolbar ---------- */
+document.getElementById("zoom").addEventListener("click",e=>{
+  const z=e.target.dataset.z; if(!z) return;
+  zoom=z; document.querySelectorAll("#zoom button").forEach(b=>b.classList.toggle("on",b.dataset.z===z));
+  renderGantt();
+});
+document.getElementById("addBtn").addEventListener("click",()=>{
+  const last=DATA.tasks[DATA.tasks.length-1]||{building:"Корпус А",floor:"2 этаж"};
+  const s=todayISO();
+  DATA.tasks.push({id:"t"+Date.now(),building:last.building,floor:last.floor,units:"уточнить",
+    stage:"Поставка",material:"",start:s,end:addDays(s,7),status:"План",depends_on:null,note:""});
+  save(); renderAll();
+});
+document.getElementById("jsonBtn").addEventListener("click",()=>{
+  download("schedule.json", JSON.stringify(DATA,null,2), "application/json");
+});
+document.getElementById("csvBtn").addEventListener("click",exportCSV);
+document.getElementById("importBtn").addEventListener("click",()=>document.getElementById("fileIn").click());
+document.getElementById("fileIn").addEventListener("change",ev=>{
+  const f=ev.target.files[0]; if(!f) return;
+  const r=new FileReader(); r.onload=()=>{ try{ DATA=JSON.parse(r.result); tagSrc("импорт"); save(); finishBoot(); }catch(e){ alert("Не похоже на корректный JSON"); } };
+  r.readAsDataURL ? r.readAsText(f) : r.readAsText(f);
+});
+
+/* ---------- exports ---------- */
+function exportCSV(){
+  const head=["Корпус","Этаж","Юниты","Этап","Материал","Начало","Окончание","Длительность, дн","Статус","Зависимость","Примечание"];
+  const rows=DATA.tasks.map(t=>[
+    t.building,t.floor,t.units,t.stage,t.material,
+    ru(t.start),ru(t.end),(diffDays(t.start,t.end)+1),t.status,
+    depLabel(t.depends_on),t.note
+  ]);
+  const sep=";";
+  const csv=[head,...rows].map(r=>r.map(c=>{
+    c=String(c??""); return /[";\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;
+  }).join(sep)).join("\r\n");
+  download("ГПР_напольное_покрытие.csv","\uFEFF"+csv,"text/csv;charset=utf-8");
+}
+const ru = s => fmt(s)+"."+parse(s).getUTCFullYear();
+function depLabel(id){ if(!id) return ""; const t=DATA.tasks.find(x=>x.id===id); return t?`${t.stage} ${t.floor} ${t.building}`:""; }
+function download(name,content,type){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+}
+
+/* ---------- embedded seed (fallback when no file / no localStorage) ---------- */
+const SEED = {
+  "project": "ARDHANA Boutique Hotel",
+  "work_type": "Напольное покрытие / плитка",
+  "updated": "2026-06-15",
+  "milestones": [
+    { "id": "mokap", "label": "Мокапы", "date": "2026-11-15" }
+  ],
+  "tasks": [
+    { "id": "A2-ps", "building": "Корпус А", "floor": "2 этаж", "units": "301–305", "stage": "Поставка", "material": "Терраццо F2 (с/у) + SPC/паркет (комната)", "start": "2026-08-04", "end": "2026-08-12", "status": "План", "depends_on": null, "note": "После штукатурки 2 эт. (до 30.07)" },
+    { "id": "A2-uk", "building": "Корпус А", "floor": "2 этаж", "units": "301–305", "stage": "Укладка", "material": "Терраццо F2 / SPC", "start": "2026-08-13", "end": "2026-08-27", "status": "План", "depends_on": "A2-ps", "note": "" },
+
+    { "id": "A3-ps", "building": "Корпус А", "floor": "3 этаж", "units": "уточнить", "stage": "Поставка", "material": "Терраццо F2 / SPC", "start": "2026-08-25", "end": "2026-09-02", "status": "План", "depends_on": null, "note": "Кладка 3 эт. до 10.08" },
+    { "id": "A3-uk", "building": "Корпус А", "floor": "3 этаж", "units": "уточнить", "stage": "Укладка", "material": "Терраццо F2 / SPC", "start": "2026-09-03", "end": "2026-09-18", "status": "План", "depends_on": "A3-ps", "note": "" },
+
+    { "id": "A4-ps", "building": "Корпус А", "floor": "4 этаж", "units": "401–413", "stage": "Поставка", "material": "Терраццо F2 / SPC", "start": "2026-09-15", "end": "2026-09-23", "status": "План", "depends_on": null, "note": "" },
+    { "id": "A4-uk", "building": "Корпус А", "floor": "4 этаж", "units": "401–413", "stage": "Укладка", "material": "Терраццо F2 / SPC", "start": "2026-09-24", "end": "2026-10-09", "status": "План", "depends_on": "A4-ps", "note": "" },
+
+    { "id": "B2-ps", "building": "Корпус Б", "floor": "2 этаж", "units": "уточнить", "stage": "Поставка", "material": "Терраццо F2 / SPC", "start": "2026-09-08", "end": "2026-09-16", "status": "План", "depends_on": null, "note": "" },
+    { "id": "B2-uk", "building": "Корпус Б", "floor": "2 этаж", "units": "уточнить", "stage": "Укладка", "material": "Терраццо F2 / SPC", "start": "2026-09-17", "end": "2026-10-02", "status": "План", "depends_on": "B2-ps", "note": "" },
+
+    { "id": "B3-ps", "building": "Корпус Б", "floor": "3 этаж", "units": "уточнить", "stage": "Поставка", "material": "Терраццо F2 / SPC", "start": "2026-09-29", "end": "2026-10-07", "status": "План", "depends_on": null, "note": "" },
+    { "id": "B3-uk", "building": "Корпус Б", "floor": "3 этаж", "units": "уточнить", "stage": "Укладка", "material": "Терраццо F2 / SPC", "start": "2026-10-08", "end": "2026-10-23", "status": "План", "depends_on": "B3-ps", "note": "" },
+
+    { "id": "B4-ps", "building": "Корпус Б", "floor": "4 этаж", "units": "уточнить", "stage": "Поставка", "material": "Терраццо F2 / SPC", "start": "2026-10-20", "end": "2026-10-28", "status": "План", "depends_on": null, "note": "Последняя партия перед мокапами" },
+    { "id": "B4-uk", "building": "Корпус Б", "floor": "4 этаж", "units": "уточнить", "stage": "Укладка", "material": "Терраццо F2 / SPC", "start": "2026-10-29", "end": "2026-11-13", "status": "Критично", "depends_on": "B4-ps", "note": "Финиш перед мокапами 15.11" }
+  ]
+};
+
+boot();
+</script>
+</body>
+</html>
